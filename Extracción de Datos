@@ -1,1 +1,112 @@
+##Con el siguiente ejemplo se busca explorar datos de un usuario de twitter
+
+## 1. limpiar espacio de trabajo
+rm(list = ls())
+
+#2. importar librerias de trabajo
+install.packages("rtweet")
+install.packages("dplyr")
+library(rtweet)
+library(dplyr)
+#3. definir las llaves de acceso
+consumer_key <- "3SOBeZoOG9mRw5cjgdvZ1MRA4" #las llaves de acceso deben ser ingresadas aqui
+consumer_secret <-"aYsiX5VxE8C0pvWmh7s9ZoKObakrQssTQzetOKotEtK4EgARuc" #las llaves de acceso deben ser ingresadas aqui
+
+#4. autenticacion para ingresar al API
+create_token(app = "martikis03", consumer_key = consumer_key ,consumer_secret = consumer_secret, set_renv = TRUE)
+
+#5. ubicar espacio de trabajo
+getwd()
+setwd(" /R/DATOS TWITTER/nuevos")
+getwd()
+
+ 
+  ?#####################)################################
+  # DATOS CENTRO DERMATOLOGICO FEDERICO LLERAS ACOSTA #
+  #####################################################
+  
+  username <-"dermatologico" #debe ingresar su usuario aqui
+  dermatologicoFe <- get_timeline("dermatologico", n = 3200)
+  dermatologicoFe <- filter(dermatologicoFe, created_at >= "2018-01-01 00:00:00")
+  dermatologicoFe <- filter(dermatologicoFe, created_at <= "2018-04-30 23:59:59")
+  dermatologicoFe <- filter(dermatologicoFe, is_retweet == FALSE)
+  View(dermatologicoFe) #fin solicitar informaciÃ³n de cuenta
+  write_as_csv(dermatologicoFe, file_name = "dermatologicoFe.csv")
+  
+  ################################################
+  # DATOS DEL INSTITUTO NACIONAL DE CANCEROLOGIA #
+  ################################################
+  
+  username <-"INCancerologia" #debe ingresar su usuario aqui
+  INCancerologia <- get_timeline(username, n = 3200)
+  INCancerologia <- filter(INCancerologia, created_at >= "2018-01-01 00:00:00")
+  INCancerologia <- filter(INCancerologia, created_at <= "2018-04-30 23:59:59")
+  INCancerologia <- filter(INCancerologia, is_retweet == FALSE)
+  View(INCancerologia) #fin solicitar informaciÃ³n de cuenta
+  write_as_csv(INCancerologia, file_name = "INCancerologia.csv")
+  
+  
+  ########################################
+  # DATOS DE instituto nacional de salud #
+  ########################################
+  
+  username <-"INSColombia" #debe ingresar su usuario aqui
+  INSColombia <- get_timeline(username, n = 3200)
+  INSColombia <- filter(INSColombia, created_at >= "2018-01-01 00:00:00")
+  INSColombia <- filter(INSColombia, created_at <= "2018-04-30 23:59:59")
+  INSColombia <- filter(INSColombia, is_retweet == FALSE)
+  View(INSColombia) #fin solicitar informaciÃ³n de cuenta
+  write_as_csv(INSColombia, file_name = "INSColombia.csv")
+  
+  ######################################################################
+  # DATOS INSTITUTO NCAIONAL DE VIGILANCIA DE MEDICAMENTOS Y ALIMENTOS #
+  ######################################################################
+  
+  username <-"invimacolombia" #debe ingresar su usuario aqui
+  invimacolombia <- get_timeline(username, n = 3200)
+  invimacolombia <- filter(invimacolombia, created_at >= "2018-01-01 00:00:00")
+  invimacolombia <- filter(invimacolombia, created_at <= "2018-04-30 23:59:59")
+  invimacolombia <- filter(invimacolombia, is_retweet == FALSE)
+  View(invimacolombia) #fin solicitar informaciÃ³n de cuenta
+  write_as_csv(invimacolombia, file_name = "invimacolombia.csv")
+  
+  
+  ##############################
+  #DATOS DE MINISTERIO DE SALUD#
+  ##############################
+  
+  username <-"MinSaludCol" #debe ingresar su usuario aqui
+  MinSaludCol <- get_timeline(username, n = 3200)
+  MinSaludCol <- filter(MinSaludCol, created_at >= "2018-01-01 00:00:00")
+  MinSaludCol <- filter(MinSaludCol, created_at <= "2018-04-30 23:59:59")
+  MinSaludCol <- filter(MinSaludCol, is_retweet == FALSE)
+  View(MinSaludCol) #fin solicitar informaciÃ³n de cuenta
+  write_as_csv(MinSaludCol, file_name = "MinSaludCol.csv")
+  
+  
+  ##################################################
+  # DATOS DE LA SUPERINTENDENCIA NACIONAL DE SALUD #
+  ##################################################
+  
+  username <-"Supersalud" #debe ingresar su usuario aqui
+  Supersalud <- get_timeline(username, n = 3200)
+  Supersalud <- filter(Supersalud, created_at >= "2018-01-01 00:00:00")
+  Supersalud <- filter(Supersalud, created_at <= "2018-04-30 23:59:59")
+  Supersalud <- filter(Supersalud, is_retweet == FALSE)
+  View(Supersalud) #fin solicitar informaciÃ³n de cuenta
+  write_as_csv(Supersalud, file_name = "Supersalud.csv")
+  
+  ##################################################################################################
+  # DATOS DE LA ORGANIZACIÓN PANAMERICANA DE LA SALUD/ORGANIZACIÓN MUNDIAL DE LA SALUD  - COLOMBIA #
+  ##################################################################################################
+  
+  username <-"OPSOMS_Col" #debe ingresar su usuario aqui
+  OPSOMS_Col <- get_timeline(username, n = 3200)
+  OPSOMS_Col <- filter(OPSOMS_Col, created_at >= "2018-01-01 00:00:00")
+  OPSOMS_Col <- filter(OPSOMS_Col, created_at <= "2018-04-30 23:59:59")
+  OPSOMS_Col <- filter(OPSOMS_Col, is_retweet == FALSE)
+  View(OPSOMS_Col) #fin solicitar informaciÃ³n de cuenta
+  write_as_csv(OPSOMS_Col, file_name = "OPSOMS_Col.csv")
+
+
 
