@@ -1,0 +1,270 @@
+
+#MINERIA DE DATOS#
+
+
+
+# 1. limpiar espacio de trabajo
+rm(list = ls())
+
+
+#2. instalar paquetes e importar librerias de trabajo
+install.packages("wordcloud",dependencies = TRUE)
+install.packages ("RTextTools",dependencies = TRUE)
+install.packages("topicmodels",dependencies = TRUE)
+install.packages("tidytext",dependencies = TRUE)
+install.packages("ggplot2",dependencies = TRUE)
+install.packages("doParallel",dependencies = TRUE)
+install.packages("Parallel",dependencies = TRUE)
+install.packages("scales",dependencies = TRUE)
+install.packages("ldatuning",dependencies = TRUE)
+install.packages("cluster",dependencies = TRUE)
+install.packages("textmineR",dependencies = TRUE)
+install.packages("factoextra",dependencies = TRUE)
+install.packages("NbClust",dependencies = TRUE)
+install.packages("dplyr",dependencies = TRUE)
+install.packages("distrEx",dependencies = TRUE) #para distancia hellnger
+install.packages("devTools")
+
+library(devtools)
+library(wordcloud)
+library(RTextTools)
+library(ggplot2)
+library(tidytext)
+library(doParallel)
+library(Parallel, lib.loc="C:/Program Files/R/R-3.5.0/library")
+library(scales)
+library(topicmodels)
+library(cluster)
+library(textmineR)
+library(ldatuning)
+library(factoextra)
+library(NbClust)
+library(dplyr)
+library(distrEx)
+#cargar archivos.R
+setwd("C:/Users/marti/OneDrive/Escritorio/R/DATOS TWITTER/limpieza")
+load("TDM_Total.R")
+setwd("C:/Users/marti/OneDrive/Escritorio/R/DATOS TWITTER/Mineria de Texto")
+
+#1. tranformacion necesario ya que la funcion LDA , tiene como parametro de entrada una matriz de Docuemnto- termino
+
+a <- function(TDM){
+  dtm <- t(TDM)
+  rowTotals <- apply(dtm , 1, sum) #Find the sum of words in each Document
+  dtm.new   <- dtm[rowTotals > 0, ] 
+}
+
+DTM_Total <- a(TDM_Total)
+
+################################## Calculo K #########################################################
+#Estas metrticas dan un intervalo posible de K, el cual despues sera definido por medio de perplejidad
+
+  k_list1 <- seq(from = 2, to = 70 , by = 1)
+  cl <- makeCluster ( detectCores () -1 ,tipo = "FORK" )
+  clusterEvalQ(cl, library(topicmodels)) # for snow
+  clusterExport( cl, c("k_list1","DTM_Total"),envir = .GlobalEnv) # for snow
+  
+  #1. calcular LDA con VEM , LDA con GIIBS y CTM con VEM ; para 70 topicos
+  {
+    LDA_VEM_TIME1 <- system.time(LDA_VEM1 <- parLapply(cl,k_list1, function(k) LDA (DTM_Total,k,method = "VEM", 
+                                                               control = list(estimate.alpha = TRUE, alpha = 50/k, 
+                                                               estimate.beta = TRUE, verbose = 0, 
+                                                               prefix = tempfile(), save = 0, keep = 0,
+                                                               seed = 1234 , nstart = 1,best = TRUE,
+                                                                   var = list(iter.max = 500,tol = 10^-6),
+                                                               em = list(iter.max = 1000, tol = 10^-4),
+                                                               initialize = "random"))))
+  
+  LDA_GIBBS_TIME1 <- system.time(LDA_GIBBS1 <- parLapply(cl, k_list1, function(k) LDA(DTM_Total, k = k, method = "gibbs", 
+                                                             control = list(alpha = 50/k, estimate.beta = TRUE,
+                                                             verbose = 0, prefix = tempfile(), save = 0, keep = 0,
+                                                             seed = 1234 , nstart = 1, best = TRUE,
+                                                             delta = 0.1,iter = 2000, burnin = 0, thin = 2000))))
+  
+  CTM_VEM_TIME <- system.time(CTM_VEM <- parLapply(cl, k_list1, function(k) CTM(DTM_Total, k = k,method = "VEM", 
+                                             control = list(estimate.beta = TRUE,verbose = 0, prefix = tempfile(), 
+                                                            save = 0, keep = 0, seed = 1234, nstart = 1L, 
+                                                            best = TRUE,var = list(iter.max = 500, tol = 10^-6),
+                                                            em = list(iter.max = 1000, tol = 10^-4),initialize = "random",
+                                                            cg = list(iter.max = 500, tol = 10^-5)))))
+  
+stopCluster(cl)
+  }
+  
+  #2. loglikelihood <- Seleccion de K optimo para cada modelo
+  {
+  logLik.LDA_vem <- lapply(LDA_VEM1, logLik)
+  perplejidad_LDA_vem <- lapply(LDA_VEM1, perplexity)
+
+  logLik.LDA_gibbs <- lapply(LDA_GIBBS1, logLik)
+  perplejidad_LDA_gibbs<- lapply(LDA_GIBBS1, perplexity)
+
+  logLik.CTM_vem <- lapply(CTM_VEM, logLik)
+  perplejidad_CTM_vem <- lapply(CTM_VEM, perplexity)
+
+
+  
+  #3.Para graficar
+  best.model.logLik.many_vem_gibbs <- data.frame(topics=k_list1, 
+                                                 LL_vem_LDA=as.numeric(as.matrix(logLik.LDA_vem)),
+                                                 LL_gibbs_LDA=as.numeric(as.matrix(logLik.LDA_gibbs)),
+                                                 pp_vem_LDA = as.numeric(as.matrix(perplejidad_LDA_vem)),
+                                                 #pp_gibbs_LDA = as.numeric(as.matrix(perplejidad_LDA_gibbs)),
+                                                 LL_vem_CTM=as.numeric(as.matrix(logLik.CTM_vem)),
+                                                 pp_vem_CTM = as.numeric(as.matrix(perplejidad_CTM_vem)))
+                                                 
+  write.csv(best.model.logLik.many_vem_gibbs,"bestmodel.csv")
+  
+
+  ggplot()+
+    geom_line(aes(x =k_list1, y = best.model.logLik.many_vem_gibbs$LL_vem_LDA , color = "LL_vem_LDA"))+
+    geom_line(aes(x =k_list1, y = best.model.logLik.many_vem_gibbs$LL_gibbs_LDA, color = "LL_gibbs_LDA"))+
+    geom_line(aes(x =k_list1, y = best.model.logLik.many_vem_gibbs$LL_vem_CTM, color = "LL_vem_CTM"))+
+    xlab("Number of topics") + ylab(" logLiks of the model") 
+
+  ggplot()+
+    geom_line(aes(x =k_list1, y = best.model.logLik.many_vem_gibbs1$pp_vem_LDA , color = "LL_vem_LDA"))+
+    geom_line(aes(x =k_list1, y = best.model.logLik.many_vem_gibbs1$pp_vem_CTM , color = "LL_vem_CTM "))+
+    xlab("Number of topics") + ylab("perplejidad") 
+  
+  #4. selecionar el mejor K basado el likehood
+  best.model.logLik.many_vem_gibbs[which.max(best.model.logLik.many_vem_gibbs$LL_vem_LDA),]
+  best.model.logLik.many_vem_gibbs[which.max(best.model.logLik.many_vem_gibbs$LL_gibbs_LDA),]
+  best.model.logLik.many_vem_gibbs[which.max(best.model.logLik.many_vem_gibbs$LL_vem_CTM),]
+}
+  
+
+  ########################Seleccion de Mejor modelo por medio de distancia de HEllinger################
+  
+  #1. Correr modelos con el K optimo
+  K_LDA_VEM=66
+  K_LDA_GIIBS=45
+  K_CTM_VEM =69
+
+  {
+  LDA_VEM_Kp_t <- system.time(LDA_VEM_Kp <- LDA(DTM_Total, k = K_LDA_VEM,method = "VEM", 
+                              control = list(estimate.alpha = TRUE, alpha = 50/K_LDA_VEM, estimate.beta = TRUE,
+                              verbose = 0, prefix = tempfile(), save = 0, keep = 0,
+                              seed = as.integer(Sys.time()), nstart = 1, best = TRUE,
+                              var = list(iter.max = 500, tol = 10^-6),
+                              em = list(iter.max = 1000, tol = 10^-4),
+                              initialize = "random")))
+  
+  LDA_GIIBS_Kp_t <- system.time(LDA_GIIBS_Kp <- LDA(DTM_Total, k = K_LDA_GIIBS, method = "gibbs", 
+                               control = list(alpha = 50/K_LDA_GIIBS, estimate.beta = TRUE,
+                               verbose = 0, prefix = tempfile(), save = 0, keep = 0,
+                               seed = as.integer(Sys.time()), nstart = 1, best = TRUE,
+                              delta = 0.1,iter = 2000, burnin = 0, thin = 2000)))
+  
+  CTM_VEM_Kp_t <- system.time(CTM_VEM_Kp<- CTM(DTM_Total, k =K_CTM_VEM ,method = "VEM", 
+                             control = list(estimate.beta = TRUE,verbose = 0, prefix = tempfile(), 
+                             save = 0, keep = 0,seed = as.integer(Sys.time()), nstart = 1L, 
+                             best = TRUE,var = list(iter.max = 500, tol = 10^-6),
+                             em = list(iter.max = 1000, tol = 10^-4),initialize = "random",
+                             cg = list(iter.max = 500, tol = 10^-5))))
+  
+  stopCluster(cl)
+  }
+  
+
+
+
+  #2. Por la similitud entre temas - Distamcas HELLINGER
+  
+  
+  install.packages("philentropy",dependences=TRUE)
+  library(philentropy)
+  library(LDAvis)
+  library(slam)
+             
+
+  LDA_GIBBS_ <- posterior(LDA_GIIBS_Kp)
+  LDA_GIBBS_TERMS<-  LDA_GIBBS_$terms 
+  LDA_GIBBS_HELLINGER <- distance(LDA_GIBBS_TERMS,method = "hellinger")
+  write.csv(LDA_GIBBS_HELLINGER,"LDA_q_h.csv")
+  LDA_GIBBS_HELLINGER_g <- as.matrix(LDA_GIBBS_HELLINGER)
+  row.names(LDA_GIBBS_HELLINGER_g) <- c(1:45)
+  colnames(LDA_GIBBS_HELLINGER_g) <- c(1:45)
+  cor.plot(LDA_GIBBS_HELLINGER_g,zlim = c(0,2), main = "LDA_GIBBS_HELLINGER")
+
+  
+  CTM_VEM_ <- posterior(CTM_VEM_Kp)
+  CTM_VEM_Terms<-  CTM_VEM_$terms 
+  CTM_VEM_HELLINGER <- distance(CTM_VEM_Terms, method = "hellinger")
+  write.csv(CTM_VEM_HELLINGER,"CTM_h.csv")
+  CTM_VEM_HELLINGER_g <- as.matrix(CTM_VEM_HELLINGER)
+  row.names(CTM_VEM_HELLINGER_g) <- c(1:69)
+  colnames(CTM_VEM_HELLINGER_g) <- c(1:69)
+  
+  cor.plot(CTM_VEM_HELLINGER_g,zlim = c(0,2), main = "CTM_VEM_HELLINGER")
+  
+
+################################# GRaficos de la mejor opcion - LDA VEM ######################################
+  
+#probabilidades de que un termino pertenezca al tema  "Beta"?
+{
+  LDA_VEM_op_Term<- tidy(LDA_VEM_Kp, matrix = "beta")
+  
+  #grafica de los 10 primero terminos
+  GTotal <- LDA_VEM_op_Term %>%
+    group_by(topic) %>%
+    top_n(8, beta) %>%
+    ungroup() %>%
+    arrange(topic, -beta)
+  
+  GTotal %>%
+    mutate(term = reorder(term, beta)) %>%
+    ggplot(aes(term, beta, fill = factor(topic))) +
+    geom_col(show.legend = FALSE) +
+    facet_wrap(~ topic, scales = "free") +
+    coord_flip()
+   }
+
+
+#Probabilidades de que un tema esta en el docuemnto  "GAMMA"?
+{
+  LDA_VEM_op_Topic<- tidy(LDA_VEM_Kp, matrix = "gamma")
+
+  
+  #grafica de los 10 primero docuemntos
+  Dderma <- LDA_VEM_op_Topic %>%
+    group_by(document) %>%
+    top_n(6, gamma) %>%
+    ungroup() %>%
+    arrange(document, -gamma)
+    
+  Dderma %>%
+    mutate(topic = reorder(topic, gamma)) %>%
+    ggplot(aes(topic, gamma, fill = factor(document))) +
+    geom_col(show.legend = FALSE) +
+    facet_wrap(~ document, scales = "free") +
+    coord_flip()
+  
+}
+
+  
+  
+  graficos <- c()
+  i=1
+  while(1<3){
+  f <- data.frame(Términos = colnames(LDA_VEM_$terms), BETA =LDA_VEM_$terms[i,])
+  f <- arrange(f, desc(BETA))
+  f <- f[1:9,]
+  j <- barplot(f$BETA, main=c(i), horiz=TRUE,
+          names.arg=f$Términos,las=1, xlab= "Beta (%)",xlim=c(0,0.6))
+  graficos <- c(graficos,j)
+  i=i+1
+  }
+  
+  i=1
+  graficos_topic <- c()
+  while(1<3){
+    f <- data.frame(Topicos = rownames(LDA_VEM_$topics), GAMMA =LDA_VEM_$topics[,i])
+    f <- arrange(f, desc(GAMMA))
+    f <- subset(f, GAMMA > 0.5)
+    j <- barplot(f$GAMMA, main=c(i), horiz=TRUE,
+                 names.arg=f$Topicos, las=1, xlab= "Gamma (%)", xlim = c(0,1))
+    graficos_topic <- c(graficos_topic,j)
+    i=i+1
+  }
+  
