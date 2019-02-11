@@ -1,0 +1,333 @@
+##Con el siguiente ejemplo se busca explorar datos de un usuario de twitter
+
+# 1. limpiar espacio de trabajo
+rm(list = ls())
+
+#2. instalar paquetes e importar librerias de trabajo
+install.packages("tm",dependencies = TRUE)
+install.packages("wordcloud",dependencies = TRUE)
+install.packages("qdap",dependencies = TRUE) #paquete de limpieza
+install.packages("stringr",dependencies = TRUE) #paquete para funcion de limpieza
+install.packages("dplyr",dependencies = TRUE)
+install.packages("rtweet",dependencies = TRUE) 
+
+
+library("tm",lib.loc="~/R/win-library/3.5")
+library("wordcloud", lib.loc="~/R/win-library/3.5")
+library("qdap", lib.loc="~/R/win-library/3.5")
+library("stringr", lib.loc="~/R/win-library/3.5")
+library("dplyr", lib.loc="~/R/win-library/3.5")
+library("rtweet", lib.loc="~/R/win-library/3.5")
+library("RTextTools", lib.loc="~/R/win-library/3.5")
+
+
+#3. cargar archivos .cvs 
+
+setwd("C:/Users/marti/OneDrive/Escritorio/R/DATOS TWITTER/nuevos")
+
+
+dermatologicoFe <- read_twitter_csv("dermatologicoFe.csv") 
+INCancerologia <-read_twitter_csv("INCancerologia.csv")
+INSColombia  <- read_twitter_csv("INSColombia.csv")
+invimacolombia <- read_twitter_csv("invimacolombia.csv")
+MinSaludCol <- read_twitter_csv("MinSaludCol.csv") 
+Supersalud <- read_twitter_csv("Supersalud.csv")
+OPSOMS_Col<- read_twitter_csv("OPSOMS_Col.csv")
+
+#4. seleccionar las variables del dataframe que se usaran en el analisis
+
+setwd("C:/Users/marti/OneDrive/Escritorio/R/DATOS TWITTER/limpieza")
+
+dermatologicoFe <- select(dermatologicoFe,created_at,screen_name,text,favorite_count,retweet_count,hashtags,is_retweet)  
+INCancerologia  <- select(INCancerologia,created_at,screen_name,text,favorite_count,retweet_count,hashtags,is_retweet)  
+INSColombia  <-  select(INSColombia,created_at,screen_name,text,favorite_count,retweet_count,hashtags,is_retweet)  
+invimacolombia <-  select(invimacolombia,created_at,screen_name,text,favorite_count,retweet_count,hashtags,is_retweet)  
+MinSaludCol <- select(MinSaludCol,created_at,screen_name,text,favorite_count,retweet_count,hashtags,is_retweet)  
+Supersalud <- select(Supersalud,created_at,screen_name,text,favorite_count,retweet_count,hashtags,is_retweet)  
+OPSOMS_Col<- select(OPSOMS_Col,created_at,screen_name,text,favorite_count,retweet_count,hashtags,is_retweet)  
+
+
+
+#5. cambiar codigo de lectura
+
+    #funcion para cambiar codigo de lectura
+    Cambiar_FileEncoding <- function(autoridadnacionaldesalud_text)
+    {
+      autoridadnacionaldesalud_text <- iconv(autoridadnacionaldesalud_text, from  = "UTF-8", to = "latin1")
+      return(autoridadnacionaldesalud_text)
+    }
+    
+    #aplicacion de la funcion Cambiar_FileEncoding 
+    dermatologicoFe$text <-  Cambiar_FileEncoding (dermatologicoFe$text)
+    INCancerologia$text <-  Cambiar_FileEncoding (INCancerologia$text)
+    INSColombia$text <-  Cambiar_FileEncoding (INSColombia$text)
+    invimacolombia$text <-  Cambiar_FileEncoding (invimacolombia$text)
+    MinSaludCol$text <-  Cambiar_FileEncoding (MinSaludCol$text)
+    Supersalud$text <-  Cambiar_FileEncoding (Supersalud$text)
+    OPSOMS_Col$text <-  Cambiar_FileEncoding (OPSOMS_Col$text)
+
+    
+
+#6. limpieza de datos
+
+
+   #definicion de palabras vacias
+   {
+   stopwords_articulos    <- c("el","los","las","un","una","unos","unas","al","del","lo", "la")
+   stopwords_conjunciones <- c("no solo","o bien","ya que", "dado que", "visto que", "puesto que",
+                            "asi como" , "como si", "sin que","aun cuando", "por mas que", 
+                            "por mucho que" , "a menos que", "en caso de que", "siempre que",
+                            "asi que", "de forma que", "de manera que", "para que", "a fin que",
+                            "luego que", "y","e","ni", "sino", "tambien", "tanto","como","asi",
+                            "igual","que", "mismo", "pero", "mas", "mientras","o","sea","fuera",
+                            "porque","como", "pues", "como", "que", "aunque", "como", "luego",
+                            "conque","con")
+  
+   stopwords <- c(stopwords("es"), stopwords_articulos,stopwords_conjunciones)
+   }
+
+  #abreviaturas
+  abreviaturas <- function(autoridadnacionaldesalud_text)
+  {
+    autoridadnacionaldesalud_text <- gsub("^dra ","\ doctora\ ",autoridadnacionaldesalud_text)
+    autoridadnacionaldesalud_text <- gsub("\\Wdra ","\ doctora\ ",autoridadnacionaldesalud_text)
+    autoridadnacionaldesalud_text <- gsub(" num ","\ numero\ ",autoridadnacionaldesalud_text)
+    autoridadnacionaldesalud_text <- gsub(" vol ","\ volumen\ ",autoridadnacionaldesalud_text)
+    autoridadnacionaldesalud_text <- gsub("^dr ","\ doctor\ ",autoridadnacionaldesalud_text)
+    autoridadnacionaldesalud_text <- gsub("\\Wdr ","\ doctor\ ",autoridadnacionaldesalud_text)
+    autoridadnacionaldesalud_text <- gsub(" niñ@s ","\ niñas\ ",autoridadnacionaldesalud_text)
+    autoridadnacionaldesalud_text <- gsub(" sist ","\ sistema\ ",autoridadnacionaldesalud_text)
+    autoridadnacionaldesalud_text <- gsub(" nal ","\ nacional\ ",autoridadnacionaldesalud_text)
+    autoridadnacionaldesalud_text <- gsub(" nte ","\ norte\ ",autoridadnacionaldesalud_text)
+    autoridadnacionaldesalud_text <- gsub(" bici ","\ bicicleta\ ",autoridadnacionaldesalud_text)
+    autoridadnacionaldesalud_text <- gsub(" tv","\ television\ ",autoridadnacionaldesalud_text)
+    autoridadnacionaldesalud_text <- gsub(" tv ","\ television\ ",autoridadnacionaldesalud_text)
+    
+  }  
+    
+   #definicion de la funcion de limpieza
+
+  limpieza_Datos <- function(autoridadnacionaldesalud_text)
+  {
+    
+      autoridadnacionaldesalud_text <- tolower (autoridadnacionaldesalud_text) 
+      autoridadnacionaldesalud_text <- abreviaturas(autoridadnacionaldesalud_text)
+      autoridadnacionaldesalud_text <- gsub ("[[:alnum:]]+@[[:alpha:]]+.gov.co","",autoridadnacionaldesalud_text)  # elimina correos institucionales
+      autoridadnacionaldesalud_text <- gsub ("https://t.co/[[:alnum:]]+","",autoridadnacionaldesalud_text)  #elimina urls alfanumericas
+      autoridadnacionaldesalud_text <- gsub ("@\\w+","",autoridadnacionaldesalud_text)  #elimina menciones de usuarios
+      autoridadnacionaldesalud_text <- gsub ("#\\w+","",autoridadnacionaldesalud_text)
+      autoridadnacionaldesalud_text <- gsub ("<u+[[:graph:]]+[[:alnum:]]>","\ ",autoridadnacionaldesalud_text) #eliminar imagenes
+      autoridadnacionaldesalud_text <- gsub ("[[:digit:]]","", autoridadnacionaldesalud_text) # elimina numeros
+      autoridadnacionaldesalud_text <- gsub ("[¿!¡$%&'()*+,-./:;<=>?@^_`{|}~\"]", "", autoridadnacionaldesalud_text)  # eliminar simbolos de puntuaciòn
+      autoridadnacionaldesalud_text <- chartr("áéíóúñÜ", "aeiounu", autoridadnacionaldesalud_text)
+      autoridadnacionaldesalud_text <- removeWords(autoridadnacionaldesalud_text, words = c(stopwords, "&lt","&gt","gtgt","ltlt","ltltlt","gtgtgt","ltltgtgt"))
+      return(autoridadnacionaldesalud_text)
+   }  
+  
+   #aplicacion de la funcion limpieza_Datos
+   dermatologicoFe$text <- limpieza_Datos(dermatologicoFe$text)
+   INCancerologia$text <- limpieza_Datos (INCancerologia$text)
+   INSColombia$text <- limpieza_Datos(INSColombia$text)
+   invimacolombia$text <-limpieza_Datos (invimacolombia$text)
+   MinSaludCol$text <-limpieza_Datos (MinSaludCol$text)
+   Supersalud$text <- limpieza_Datos (Supersalud$text)
+   OPSOMS_Col$text <-limpieza_Datos (OPSOMS_Col$text)
+
+   
+   
+   #eliminacion de filas vacias 
+{  
+ 
+   dermatologicoFe <- dermatologicoFe[-c(46),]
+   INCancerologia  <- INCancerologia[-c(),]
+   INSColombia  <-    INSColombia[-c(197,247,360,365,368,381,432,473,532,660),]
+   invimacolombia <-   invimacolombia[-c(1,6,7,11,16,17,19,21,22,24,26,28,29,30,32,34,36,40,56,57,61,67,70,86,89,97,106,
+                                         107,110,114,115,116,120,132,140,141,153,156,163,165,168,171,173,176,179,184,191,
+                                         203,205,207,213,214,218,219,227,228,232,240,243,250,251,253,260,268,269,286,290,
+                                         292,293,294,296,300,302,303,305,306,308,310,318,324,325,331,335,339,340,356,358,
+                                         368,371,385,386,394,395,401,404,411,416,420,424,428,432,437,442,443,464,473,474,
+                                         476,488,501,502,504,506,508,517,522,529,540,544,547,550,553,556,560,563,571,574,
+                                         577,582,585,588,593,604,623,627,631,632,634,635,636,637,644,645,647,648,649,656,
+                                         658,661,662,663,666,667,670,671,672,675,676,678,680,688,691,693,696,724,728,729,
+                                         731,732,742,743,748,770,773,789,790,792,794,798,801,803,807,810,812,814,817,820,
+                                         822,824,825,829,831,834,839,866,871,875,885,898,908,910,914,920,925,928,932,936,
+                                         939,940,941,945,948,949,950,959,965,966,969,979,989,991,992,996,1000,1003,1008,
+                                         1010,1015,1018,1021,1029,1037,1044,1046,1047,1049,1052,1055,1057,1061,1063,1066,
+                                         1074,1075,1085,1093,1099,1102,1103,1104,1108,1111,1127,1129,1132,1133,1142,1149,
+                                         1153,1155,1164,1168,1169,1172,1176,1177,1178,1180,1184,1185,1187,1189,1192,1193,
+                                         1197,1198,1203,1206,1211,1214,1224,1231,1251,1252,1254,1256,1259,1268,1277,1280,
+                                         1282,1284,1289,1290,1292,1297,1298,1300,1308,1312,1318,1335,1338,1345,1348,1350,
+                                         1355,1357,1358,1368,1372,1374,1375,1389,1390,1392,1396,1398,1399,1401,1405,1407,
+                                         1408,1410,1414,1422,1428,1433,1435,1437,1451,1453,1454,1463,1473,1477,1483,1492,
+                                         1502,1504,1505,1507,1510,1512,1513,1515,1518,1520,1521,1523,1525,1527,1540,1547,
+                                         1556,1559,1561,1562,1563,1564,1567,1572,1573,1576,1579,1580,1582,1587,1591,1596,1600,
+                                         1605,1611,1614,1615,1618,1619,1623,1630,1635,1643,1647,1649,1660,1666,1669,1672,
+                                         1673,1674,1679,1681,1684,1686,1687,1690,1693,1695,1696,1699,1705,1708,1717,1719,
+                                         1721,1723,1724,1727,1731,1737,1742,1744,1749,1751,1762,1764,1767,1771,1772,1773,
+                                         1778,1781,1786,1789,1792,1799,1800,1801,1802,1804,1806,1808,1810,1814,1823,1825,
+                                         1827,1834,1835,1839,1844,1845,1847,1848,1854,1861,1863,1865,1869,1876,1878,1882,
+                                         1887,1891,1892,1895,1898,1899,1907,1908,1910,1911,1913,1916,1917,1919,1921,1923,
+                                         1926,1929,1930,1931,1932,1933,1937,1941),]
+
+   MinSaludCol <-  MinSaludCol[-c(3,4,231,475,1442,1520,1525,1567,1766,1782,1831,1908),]
+   Supersalud <- Supersalud[-c(),]
+   OPSOMS_Col<-  OPSOMS_Col[-c(33,67,68,79,129,135,151),]
+   Total <- rbind(dermatologicoFe,INCancerologia, INSColombia,
+                  invimacolombia, MinSaludCol,Supersalud,OPSOMS_Col)
+   Total <- data.frame(Total)
+}
+   write.csv(Total$text,file = "totalsinlimpieza.csv")
+   write.csv(INCancerologia$text,file = "cancetext.csv")
+   Total$text[58]
+   
+#############################
+#representacion de los datos#  
+#############################
+   
+   # Ojo, ver curso de datacamp, ahi doce por que se debe usar la funcion VectorSource
+   corpus_dermatologicoFe <-  Corpus(VectorSource(dermatologicoFe$text))
+   corpus_INCancerologia <-  Corpus(VectorSource(INCancerologia$text))
+   corpus_INSColombia <-  Corpus(VectorSource(INSColombia$text))
+   corpus_invimacolombia <-  Corpus(VectorSource(invimacolombia$text))
+   corpus_MinSaludCol <-  Corpus(VectorSource(MinSaludCol$text))
+   corpus_Supersalud <-  Corpus(VectorSource(Supersalud$text))
+   corpus_OPSOMS_Col <-  Corpus(VectorSource(OPSOMS_Col$text))
+   corpus_Total <-  Corpus(VectorSource(Total$text))
+   
+   #############   NUBE DE PALABRAS   #############
+   
+   #tranformacion necesario ya que la funcion WeightTfIdf , tiene como parametro de entrada una matriz de termino - Docuemnto
+   TDM_dermatologicoFe <- TermDocumentMatrix(corpus_dermatologicoFe)
+   TDM_INCancerologia <- TermDocumentMatrix(corpus_INCancerologia) 
+   TDM_INSColombia <- TermDocumentMatrix(corpus_INSColombia)
+   TDM_invimacolombia <- TermDocumentMatrix(corpus_invimacolombia)
+   TDM_MinSaludCol<- TermDocumentMatrix(corpus_MinSaludCol)
+   TDM_Supersalud <- TermDocumentMatrix(corpus_Supersalud)
+   TDM_OPSOMS_Col <- TermDocumentMatrix(corpus_OPSOMS_Col)
+   TDM_Total <- TermDocumentMatrix(corpus_Total)
+
+   nov_TDMderma<- removeSparseTerms(TDM_dermatologicoFe, sparse = .995)
+   nov_TDMINC<- removeSparseTerms(TDM_INCancerologia, sparse = .995)
+   nov_TDMINS<- removeSparseTerms(TDM_INSColombia, sparse = .995)
+   nov_TDMinvima<- removeSparseTerms(TDM_invimacolombia, sparse = .995)
+   nov_TDMminsa<- removeSparseTerms(TDM_MinSaludCol, sparse = .995)
+   nov_TDMsuper<- removeSparseTerms(TDM_Supersalud, sparse = .995)
+   nov_TDMopsoms<- removeSparseTerms(TDM_OPSOMS_Col, sparse = .995)
+   nov_TDMtotal<- rbind.data.frame(nov_TDMderma,nov_TDMINC,nov_TDMINS,
+                                   nov_newinvima,nov_TDMminsa,nov_TDMsuper,nov_TDMopsoms)
+   
+  
+   save(TDM_dermatologicoFe, file = "TDM_dermatologicoFe.R")
+   save(TDM_INCancerologia,file ="TDM_INCancerologia.R")
+   save(TDM_INSColombia,file ="TDM_INSColombia.R")
+   save(TDM_invimacolombia,file ="TDM_invimacolombia.R")
+   save(TDM_MinSaludCol,file ="TDM_MinSaludCol.R")
+   save(TDM_Supersalud,file ="TDM_OPSOMS_Col.R")
+   save(TDM_OPSOMS_Col,file ="TDM_Supersalud.R")
+   save(TDM_Total,file ="TDM_Total.R")
+
+   # matriz TF IDF = Se usa para conocer el Vocabulario a Tratar en LDA
+   {
+      Calculo_de_pesos <- function(text_autoridadnacionaldesalud)
+      {
+         a <- weightTfIdf(text_autoridadnacionaldesalud)  #calcula los pesos TfIdf ¿que tipo de archivo?
+         a <- as.matrix(a) #covierte en un una matriz
+         a <- t(a) # pasa los docuemntos a filas y los terminos a columnas
+         #suma los los pesos de cada termino
+         a <- sort(colSums(a),decreasing = T)
+        return(a)
+        } 
+
+    #aplicaciòn de la funciòn
+    pesos_dermatologicoFe <- Calculo_de_pesos(TDM_dermatologicoFe)
+    pesos_INCancerologia <- Calculo_de_pesos(TDM_INCancerologia)
+    pesos_INSColombia <- Calculo_de_pesos(TDM_INSColombia)
+    pesos_invimacolombia <- Calculo_de_pesos(TDM_invimacolombia)
+    pesos_MinSaludCol <- Calculo_de_pesos(TDM_MinSaludCol) 
+    pesos_Supersalud <- Calculo_de_pesos(TDM_Supersalud)
+    pesos_OPSOMS_Col <- Calculo_de_pesos(TDM_OPSOMS_Col)
+    pesos_Total <- Calculo_de_pesos(TDM_Total)
+
+    #Convertir en dataframe los datos de TF IDF 
+    pesos_dermatologicoFe <- data.frame(palabras = names(pesos_dermatologicoFe), TfIdf = pesos_dermatologicoFe)
+    pesos_INCancerologia <- data.frame(palabras = names(pesos_INCancerologia), TfIdf = pesos_INCancerologia)
+    pesos_INSColombia <- data.frame(palabras = names(pesos_INSColombia), TfIdf = pesos_INSColombia)
+    pesos_invimacolombia <- data.frame(palabras = names(pesos_invimacolombia), TfIdf = pesos_invimacolombia)
+    pesos_MinSaludCol<- data.frame(palabras = names(pesos_MinSaludCol), TfIdf = pesos_MinSaludCol)
+    pesos_Supersalud <- data.frame(palabras = names(pesos_Supersalud), TfIdf = pesos_Supersalud)
+    pesos_OPSOMS_Col <- data.frame(palabras = names(pesos_OPSOMS_Col), TfIdf = pesos_OPSOMS_Col)
+    pesos_Total <- data.frame(palabras = names(pesos_Total), TfIdf = pesos_Total)
+    a <- filter(pesos_dermatologicoFe, TfIdf < mean(pesos_dermatologicoFe$TfIdf))
+
+    removeSparseTerms(pesos_dermatologicoFe,sparse = 0.99)
+ # nube de palabras con los terminos mas usados
+    { 
+    wordcloud(words = pesos_dermatologicoFe$palabras, 
+              freq = pesos_dermatologicoFe$TfIdf,
+              min.freq = mean(pesos_dermatologicoFe$TfIdf),
+              scale = c(2,0.2),
+              max.words = 200,
+              random.order = FALSE,
+              color= brewer.pal(12, "Paired"))   
+
+    barplot(prop.table(table(pesos_dermatologicoFe$palabras)))
+    
+    wordcloud(words = pesos_INCancerologia$palabras, 
+              freq = pesos_INCancerologia$TfIdf,
+              min.freq = mean(pesos_INCancerologia$TfIdf),
+              scale = c(2,0.2),
+              max.words = 200,
+              random.order = FALSE,
+              colors = brewer.pal(8, "Dark2"))
+    
+    wordcloud(words = pesos_INSColombia$palabras, 
+              freq = pesos_INSColombia$TfIdf,
+              min.freq =   mean(pesos_INSColombia$TfIdf),
+              scale = c(2,0.1),
+              max.words = 200,
+              random.order = FALSE,
+              colors = brewer.pal(9, "Set1"))
+    
+    wordcloud(words = pesos_invimacolombia$palabras, 
+              freq = pesos_invimacolombia$TfIdf,
+              min.freq = mean(pesos_invimacolombia$TfIdf),
+              scale = c(2,0.2),
+              max.words = 200,
+              random.order = FALSE,
+              colors = brewer.pal(9, "Set1"))
+
+    wordcloud(words = pesos_MinSaludCol$palabras, 
+              freq = pesos_MinSaludCol$TfIdf,
+              min.freq = mean(pesos_MinSaludCol$TfIdf),
+              scale = c(2,0.2),
+              max.words = 200,
+              random.order = FALSE,
+              colors = brewer.pal(9, "Set1"))
+          
+        wordcloud(words = pesos_Supersalud$palabras, 
+              freq = pesos_Supersalud$TfIdf,
+              min.freq = mean(pesos_Supersalud$TfIdf),
+              scale = c(2,0.2),
+              max.words = 200,
+              random.order = FALSE,
+              colors = brewer.pal(12, "Set1"))
+    
+    wordcloud(words = pesos_OPSOMS_Col$palabras, 
+              freq = pesos_OPSOMS_Col$TfIdf,
+              min.freq = mean(pesos_OPSOMS_Col$TfIdf),
+              scale = c(2,0.2),
+              max.words = 200,
+              random.order = FALSE,
+              colors = brewer.pal(9, "Set1"))
+    
+    wordcloud(words = pesos_Total$palabras, 
+              freq = pesos_Total$TfIdf,
+              min.freq = mean(pesos_Total$TfIdf),
+              scale = c(2,0.2),
+              max.words = 200,
+              random.order = FALSE,
+              colors = brewer.pal(9, "Set1"))
+    } 
+
+   }
+   
