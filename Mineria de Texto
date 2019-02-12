@@ -92,7 +92,7 @@ stopCluster(cl)
   }
   
   #2. loglikelihood <- Seleccion de K optimo para cada modelo
-  {
+  
   logLik.LDA_vem <- lapply(LDA_VEM1, logLik)
   perplejidad_LDA_vem <- lapply(LDA_VEM1, perplexity)
 
@@ -109,7 +109,6 @@ stopCluster(cl)
                                                  LL_vem_LDA=as.numeric(as.matrix(logLik.LDA_vem)),
                                                  LL_gibbs_LDA=as.numeric(as.matrix(logLik.LDA_gibbs)),
                                                  pp_vem_LDA = as.numeric(as.matrix(perplejidad_LDA_vem)),
-                                                 #pp_gibbs_LDA = as.numeric(as.matrix(perplejidad_LDA_gibbs)),
                                                  LL_vem_CTM=as.numeric(as.matrix(logLik.CTM_vem)),
                                                  pp_vem_CTM = as.numeric(as.matrix(perplejidad_CTM_vem)))
                                                  
@@ -122,16 +121,12 @@ stopCluster(cl)
     geom_line(aes(x =k_list1, y = best.model.logLik.many_vem_gibbs$LL_vem_CTM, color = "LL_vem_CTM"))+
     xlab("Number of topics") + ylab(" logLiks of the model") 
 
-  ggplot()+
-    geom_line(aes(x =k_list1, y = best.model.logLik.many_vem_gibbs1$pp_vem_LDA , color = "LL_vem_LDA"))+
-    geom_line(aes(x =k_list1, y = best.model.logLik.many_vem_gibbs1$pp_vem_CTM , color = "LL_vem_CTM "))+
-    xlab("Number of topics") + ylab("perplejidad") 
   
   #4. selecionar el mejor K basado el likehood
   best.model.logLik.many_vem_gibbs[which.max(best.model.logLik.many_vem_gibbs$LL_vem_LDA),]
   best.model.logLik.many_vem_gibbs[which.max(best.model.logLik.many_vem_gibbs$LL_gibbs_LDA),]
   best.model.logLik.many_vem_gibbs[which.max(best.model.logLik.many_vem_gibbs$LL_vem_CTM),]
-}
+  
   
 
   ########################Seleccion de Mejor modelo por medio de distancia de HEllinger################
@@ -166,17 +161,21 @@ stopCluster(cl)
   stopCluster(cl)
   }
   
-
-
-
   #2. Por la similitud entre temas - Distamcas HELLINGER
-  
-  
+ 
   install.packages("philentropy",dependences=TRUE)
   library(philentropy)
   library(LDAvis)
   library(slam)
              
+  LDA_VEM_ <- posterior(LDA_GIIBS_Kp)
+  LDA_VEM_TERMS<-  LDA_GIBBS_$terms 
+  LDA_VEM_HELLINGER <- distance(LDA_VEM_TERMS,method = "hellinger")
+  write.csv(LDA_VEM_HELLINGER,"LDA_q_h.csv")
+  LDA_VEM_HELLINGER_g <- as.matrix(LDA_VEM_HELLINGER)
+  row.names(LDA_VEM_HELLINGER_g) <- c(1:66)
+  colnames(LDA_VEM_HELLINGER_g) <- c(1:66)
+  cor.plot(LDA_VEM_HELLINGER_g,zlim = c(0,2), main = "LDA_VEM_HELLINGER")
 
   LDA_GIBBS_ <- posterior(LDA_GIIBS_Kp)
   LDA_GIBBS_TERMS<-  LDA_GIBBS_$terms 
@@ -195,14 +194,13 @@ stopCluster(cl)
   CTM_VEM_HELLINGER_g <- as.matrix(CTM_VEM_HELLINGER)
   row.names(CTM_VEM_HELLINGER_g) <- c(1:69)
   colnames(CTM_VEM_HELLINGER_g) <- c(1:69)
-  
   cor.plot(CTM_VEM_HELLINGER_g,zlim = c(0,2), main = "CTM_VEM_HELLINGER")
   
 
 ################################# GRaficos de la mejor opcion - LDA VEM ######################################
-  
+############ Graficos GEnerales
 #probabilidades de que un termino pertenezca al tema  "Beta"?
-{
+
   LDA_VEM_op_Term<- tidy(LDA_VEM_Kp, matrix = "beta")
   
   #grafica de los 10 primero terminos
@@ -242,7 +240,7 @@ stopCluster(cl)
   
 }
 
-  
+  ############ Graficos Individuales por termino
   
   graficos <- c()
   i=1
@@ -256,6 +254,7 @@ stopCluster(cl)
   i=i+1
   }
   
+  ############ Graficos Individuales por tópico
   i=1
   graficos_topic <- c()
   while(1<3){
